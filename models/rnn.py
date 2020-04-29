@@ -41,6 +41,39 @@ class StackedLSTM(nn.Module):
     def zero_state(self):
         return torch.zeros(self.num_layers, self.hidden_size)
 
+# 增加gru类型,于LSTM的差异在于GRU没有c
+class StackedGRU(nn.Module):
+    def __init__(self, num_layers, input_size, hidden_size, dropout):
+        super(StackedGRU, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.dropout = nn.Dropout(dropout)
+        self.num_layers = num_layers
+        self.layers = nn.ModuleList()
+
+        for i in range(num_layers):
+            #将cell改为gru
+            # self.layers.append(nn.LSTMCell(input_size, hidden_size))
+            self.layers.append(nn.GRUCell(input_size, hidden_size))
+            input_size = hidden_size
+
+    def forward(self, input, hidden):
+        h_0 = hidden
+        h_1 = []
+        for i, layer in enumerate(self.layers):
+            h_1_i = layer(input, h_0[i])
+            input = h_1_i
+            if i + 1 != self.num_layers:
+                input = self.dropout(input)
+            h_1 += [h_1_i]
+
+        # layerwise stack
+        h_1 = torch.stack(h_1)
+
+        return input, h_1
+
+    def zero_state(self):
+        return torch.zeros(self.num_layers, self.hidden_size)
 
 class rnn_encoder(nn.Module):
 
@@ -100,18 +133,22 @@ class gated_rnn_encoder(nn.Module):
         outputs = outputs * p
         return outputs, state
 
-
+# 解码器
 class rnn_decoder(nn.Module):
 
-    def __init__(self, config, vocab_size, embedding=None):
+    def __init__(self, config, vocab_size, embedding=None, gru=True):
         super(rnn_decoder, self).__init__()
         if embedding is not None:
             self.embedding = embedding
         else:
             self.embedding = nn.Embedding(vocab_size, config.emb_size)
-        self.rnn = StackedLSTM(input_size=config.emb_size, hidden_size=config.decoder_hidden_size,
+        # 将rnn改为stackedGRU
+        if gru == True:
+            self.rnn = StackedGRU(input_size=config.emb_size, hidden_size=config.decoder_hidden_size,
                                num_layers=config.num_layers, dropout=config.dropout)
-
+        else:
+            self.rnn = StackedLSTM(input_size=config.emb_size, hidden_size=config.decoder_hidden_size,
+                                  num_layers=config.num_layers, dropout=config.dropout)
         self.linear = nn.Linear(config.decoder_hidden_size, vocab_size)
 
         if hasattr(config, 'att_act'):
@@ -126,6 +163,7 @@ class rnn_decoder(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
         self.config = config
 
+# init_state 是encoder的hidden output, contexts是encoder outputs
     def forward(self, inputs, init_state, contexts=None):
         embs = self.embedding(inputs)
         outputs, state, attns = [], init_state, []
@@ -340,3 +378,74 @@ class pointer_decoder(nn.Module):
         final_dist = vocab_dist_extended + attn_dist_projected
 
         return final_dist
+
+
+# 无attention机制的解码器，输入encoder的hidden output和
+class rnn_decoder_noAtten(nn.Module):
+
+    def __init__(self, config, vocab_size, embedding=None):
+        super(rnn_decoder_noAtten, self).__init__()
+        if embedding is not None:
+            self.embedding = embedding
+        else:
+            self.embedding = nn.Embedding(vocab_size, config.emb_size)
+        # 将rnn改为stackedGRU
+        self.rnn = StackedGRU(input_size=config.emb_size, hidden_size=config.decoder_hidden_size,
+                               num_layers=config.num_layers, dropout=config.dropout)
+
+        self.linear = nn.Linear(config.decoder_hidden_size, vocab_size)
+
+        # if hasattr(config, 'att_act'):
+        #     activation = config.att_act
+        #     print('use attention activation %s' % activation)
+        # else:
+        #     activation = None
+
+        # self.attention = models.global_attention(config.decoder_hidden_size, activation)
+        # self.attention = models.global_attention(config.decoder_hidden_size, activation)
+        self.hidden_size = config.decoder_hidden_size
+        self.dropout = nn.Dropout(config.dropout)
+        self.config = config
+
+# init_state 是encoder的hidden output, contexts是encoder outputs
+    def forward(self, inputs, init_state, contexts=None):
+        embs = self.embedding(inputs)
+        outputs, state = [], init_state
+        for emb in embs.split(1, dim=1):
+            output, state = self.rnn(emb.squeeze(1), state)
+            # attn_weights = None
+            # if contexts is not None:
+            #     output, attn_weights = self.attention(output, contexts)
+            output = self.dropout(output)
+            outputs += [self.linear(output)]
+            # attns += [attn_weights]
+        outputs = torch.stack(outputs, 1)
+        # if contexts is not None:
+        #     attns = torch.stack(attns, 1)
+        return outputs, state
+
+
+    def sample(self, input, init_state):
+        # emb = self.embedding(input)
+        inputs, outputs, sample_ids, state = [], [], [], init_state
+        attns = []
+        inputs += input
+        max_time_step = self.config.max_tgt_len
+
+        for i in range(max_time_step):
+            # output: [batch, tgt_vocab_size]
+            output, state = self.sample_one(inputs[i], state)  # inputs is a list we just built, not a big batch
+            predicted = output.max(dim=1)[1]  # max returns max_value, max_id
+            inputs += [predicted]
+            sample_ids += [predicted]
+            outputs += [output]
+
+        sample_ids = torch.stack(sample_ids, 1)
+        return sample_ids, outputs
+
+    def sample_one(self, input, state):
+        emb = self.embedding(input)
+        output, state = self.rnn(emb, state)
+        output = self.linear(output)
+
+        return output, state

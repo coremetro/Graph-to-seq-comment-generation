@@ -116,8 +116,9 @@ class Encoder(nn.Module):
         "Pass the input (and mask) through each layer in turn."
         if mask.dim() == 2:
             seq_len = mask.size(1)
-            mask = mask.unsqueeze(1).expand(-1, seq_len, -1)
+            mask = mask.unsqueeze(1).expand(-1, seq_len, -1)  # [13, 101, 101]
             assert mask.size() == (x.size(0), seq_len, seq_len)
+            # layer 里是两层EncoderLayer,每个 encoderlayer有2层，第一层是multi-atten,后一层是简单的前馈
         for layer in self.layers:
             x, attn = layer(x, mask)
         return self.norm(x), attn
@@ -152,6 +153,7 @@ class EncoderLayer(nn.Module):
     def forward(self, x, mask):
         "Follow Figure 1 (left) for connections."
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
+        # 这里 attn 就是 multi atten后又放入attention函数得到p_attn
         attn = self.self_attn.get_attn(x, x, x, mask)
         return self.sublayer[1](x, self.feed_forward), attn
 
@@ -181,20 +183,24 @@ class MultiHeadedAttention(nn.Module):
         self.attn = None
 
     def forward(self, query, key, value, mask=None):
+        # query,key,value实际上都是input也就是x，定义的h是heads_num, nbatches=len(content)=13也是concepts的数量
         if mask is not None:
             # Same mask applied to all h heads.
             mask = mask.unsqueeze(1)
             assert mask.dim() == 4  # batch, head, seq_len, seq_len
-        nbatches = query.size(0)
+        nbatches = query.size(0)   # 这就是src_emb的size(0),因为x=query=src_emb+pos_emb=13
 
         # 1) Do all the linear projections in batch from d_model => head * d_k
+        # 这里将query,key,value进行线性变换，后reshape，变换前是[13,101,128] reshape后，是[13,101,4,128/4]
         query, key, value = [l(x).view(nbatches, -1, self.h, self.d_k).transpose(1, 2)
                              for l, x in zip(self.linears, (query, key, value))]
 
         # 2) Apply attention on all the projected vectors in batch.
+        # 这里用了attention公式，x的维度是【13，4，101，128/4】，attn的维度是【13，4，101，101】
         x, self.attn = attention(query, key, value, mask=mask, dropout=self.p)
 
         # 3) "Concat" using a view and apply a final linear.
+        # 再将x的维度变为[13,101,128]
         x = x.transpose(1, 2).contiguous().view(nbatches, -1, self.h * self.d_k)
         return self.linears[-1](x)
 

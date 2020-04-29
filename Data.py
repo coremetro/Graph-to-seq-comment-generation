@@ -18,6 +18,7 @@ MASK = 4
 TITLE = 5
 MAX_LENGTH = 100
 
+# 在Batch类中增加对graph2gru, graph2gru_noAtten的支持
 
 class Vocab:
     def __init__(self, vocab_file, content_file, vocab_size=50000):
@@ -34,7 +35,7 @@ class Vocab:
     @staticmethod
     def build_vocab(corpus_file, vocab_file):
         word2count = {}
-        for line in open(corpus_file):
+        for line in open(corpus_file,"r",encoding='UTF-8'):
             words = line.strip().split()
             for word in words:
                 if word not in word2count:
@@ -42,13 +43,13 @@ class Vocab:
                 word2count[word] += 1
         word2count = list(word2count.items())
         word2count.sort(key=lambda k: k[1], reverse=True)
-        write = open(vocab_file, 'w')
+        write = open(vocab_file, 'w', encoding='UTF-8')
         for word_pair in word2count:
             write.write(word_pair[0] + '\t' + str(word_pair[1]) + '\n')
         write.close()
 
     def load_vocab(self, vocab_file, vocab_size):
-        for line in open(vocab_file):
+        for line in open(vocab_file,'r', encoding='UTF-8'):
             term_ = line.strip().split('\t')
             if len(term_) != 2:
                 continue
@@ -166,6 +167,26 @@ class Batch:
             self.concept = [np.array(e.concept, dtype=np.long) for e in example_list]
             self.title_index = [e.title_index for e in example_list]
             self.adj = [e.adj for e in example_list]
+        elif model == 'graph2gru':
+            self.src_len = [len(e.content) for e in example_list]
+            batch_src = [e.content for e in example_list]
+            self.src = [np.array(src, dtype=np.long) for src in batch_src]
+            self.src_mask = [np.array(e.content_mask, dtype=np.int32) for e in example_list]
+            concept_max_len = max([len(e.concept) for e in example_list])
+            self.concept_vocab, self.concept_mask = self.padding([e.concept for e in example_list], concept_max_len)
+            self.concept = [np.array(e.concept, dtype=np.long) for e in example_list]
+            self.title_index = [e.title_index for e in example_list]
+            self.adj = [e.adj for e in example_list]
+        elif model == 'graph2gru_noAtten':
+            self.src_len = [len(e.content) for e in example_list]
+            batch_src = [e.content for e in example_list]
+            self.src = [np.array(src, dtype=np.long) for src in batch_src]
+            self.src_mask = [np.array(e.content_mask, dtype=np.int32) for e in example_list]
+            concept_max_len = max([len(e.concept) for e in example_list])
+            self.concept_vocab, self.concept_mask = self.padding([e.concept for e in example_list], concept_max_len)
+            self.concept = [np.array(e.concept, dtype=np.long) for e in example_list]
+            self.title_index = [e.title_index for e in example_list]
+            self.adj = [e.adj for e in example_list]
         elif model == 'seq2seq':
             self.title_content_len = self.get_length([e.title + e.original_content for e in example_list], max_len)
             self.title_content, self.title_content_mask = self.padding(
@@ -195,6 +216,22 @@ class Batch:
 
     def to_tensor(self):
         if self.model == 'graph2seq':
+            self.src = [torch.from_numpy(src) for src in self.src]
+            self.src_mask = [torch.from_numpy(mask) for mask in self.src_mask]
+            self.src_len = torch.from_numpy(np.array(self.src_len, dtype=np.long))
+            self.title_index = torch.from_numpy(np.array(self.title_index, dtype=np.long))
+            self.concept = [torch.from_numpy(concept) for concept in self.concept]
+            self.concept_vocab = torch.from_numpy(np.array(self.concept_vocab, dtype=np.long))
+            self.concept_mask = torch.from_numpy(np.array(self.concept_mask, dtype=np.int32))
+        elif self.model == 'graph2gru':
+            self.src = [torch.from_numpy(src) for src in self.src]
+            self.src_mask = [torch.from_numpy(mask) for mask in self.src_mask]
+            self.src_len = torch.from_numpy(np.array(self.src_len, dtype=np.long))
+            self.title_index = torch.from_numpy(np.array(self.title_index, dtype=np.long))
+            self.concept = [torch.from_numpy(concept) for concept in self.concept]
+            self.concept_vocab = torch.from_numpy(np.array(self.concept_vocab, dtype=np.long))
+            self.concept_mask = torch.from_numpy(np.array(self.concept_mask, dtype=np.int32))
+        elif self.model == 'graph2gru_noAtten':
             self.src = [torch.from_numpy(src) for src in self.src]
             self.src_mask = [torch.from_numpy(mask) for mask in self.src_mask]
             self.src_len = torch.from_numpy(np.array(self.src_len, dtype=np.long))
@@ -250,7 +287,9 @@ class DataLoader:
         self.vocab = vocab
         self.batch_size = batch_size
         if not no_train:
-            self.train_data = self.read_json(os.path.join(data_path, 'train_graph_features.json'), adj_type,
+            # self.train_data = self.read_json(os.path.join(data_path, 'train_graph_features.json'), adj_type,
+            #                                  is_train=True, use_gnn=use_gnn)
+            self.train_data = self.read_json(os.path.join(data_path, 'small_train_graph_features.json'), adj_type,
                                              is_train=True, use_gnn=use_gnn)
             self.train_batches = self.make_batch(self.train_data, batch_size, is_train=True, model=model)
             random.shuffle(self.train_batches)
@@ -272,7 +311,7 @@ class DataLoader:
 
     def read_json(self, filename, adj_type, is_train=True, use_gnn=False):
         result = []
-        for line in open(filename, "r"):
+        for line in open(filename, 'r', encoding='utf-8'):
             if len(result) > 100 and self.debug:
                 break
             g = json.loads(line)
@@ -342,7 +381,7 @@ def data_stats(fname, is_test):
     keyword_num = []
     urls = {}
 
-    for line in open(fname, "r"):
+    for line in open(fname, "rb"):
         g = json.loads(line)
         url = g["url"]
         if url not in urls:
@@ -395,13 +434,13 @@ def data_stats(fname, is_test):
 
 
 def eval_bow(feature_file, cand_file):
-    stop_words = {word.strip() for word in open('stop_words.txt').readlines()}
+    stop_words = {word.strip() for word in open('stop_words.txt','r', encoding='UTF-8').readlines()}
     contents = []
-    for line in open(feature_file, "r"):
+    for line in open(feature_file,'r', encoding='UTF-8'):
         g = json.loads(line)
         contents.append(remove_stopwords(g["text"].split(), stop_words))
     candidates = []
-    for line in open(cand_file):
+    for line in open(cand_file,'r', encoding='UTF-8'):
         words = line.strip().split()
         candidates.append(remove_stopwords(words, stop_words))
     assert len(contents) == len(candidates), (len(contents), len(candidates))
@@ -412,9 +451,9 @@ def eval_bow(feature_file, cand_file):
 
 
 def eval_unique_words(cand_file):
-    stop_words = {word.strip() for word in open('stop_words.txt').readlines()}
+    stop_words = {word.strip() for word in open('stop_words.txt','r', encoding='UTF-8').readlines()}
     result = set()
-    for line in open(cand_file):
+    for line in open(cand_file,'r', encoding='UTF-8'):
         words = set(line.strip().split())
         result.update(words)
     result = result.difference(stop_words)
@@ -424,7 +463,7 @@ def eval_unique_words(cand_file):
 def eval_distinct(cand_file):
     unigram, bigram, trigram = set(), set(), set()
     sentence = set()
-    for line in open(cand_file):
+    for line in open(cand_file,'r', encoding='UTF-8'):
         words = line.strip().split()
         sentence.add(line)
         unigram.update(set(words))
@@ -440,13 +479,17 @@ if __name__ == '__main__':
     print('entertainment')
     data_stats('./data/train_graph_features.json', False)
     data_stats('./data/dev_graph_features.json', True)
+    
     print('sport')
     data_stats('./sport_data/train_graph_features.json', False)
     data_stats('./sport_data/dev_graph_features.json', True)
+    
+    data_stats('./data/sport/train_graph_features.json', False)
+    data_stats('./data/sport/dev_graph_features.json', False)
     '''
     topic = sys.argv[1]
     cand_log = sys.argv[2]
-    # print(eval_bow(os.path.join(topic, 'dev_graph_features.json'), os.path.join(topic, 'log', cand_log, 'candidate.txt'))[1])
+    print(eval_bow(os.path.join(topic, 'dev_graph_features.json'), os.path.join(topic, 'log', cand_log, 'candidate.txt'))[1])
     unigram, bigram, trigram, sentence = eval_distinct(os.path.join(topic, 'log', cand_log, 'candidate.txt'))
     print('unigram', len(unigram), 'bigram', len(bigram), 'trigram', len(trigram), 'sentence', len(sentence))
     print(len(eval_unique_words(os.path.join(topic, 'log', cand_log, 'candidate.txt'))))

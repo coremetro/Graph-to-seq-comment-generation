@@ -5,7 +5,7 @@ vocab_size: 60000
 type_num: 4
 head_num: 4
 log: './sport_data/log/'
-epoch: 5
+epoch: 1
 batch_size: 32
 param_init: 0.1
 optim: 'adam'
@@ -24,8 +24,10 @@ bidirec: True
 dropout: 0.1
 max_tgt_len: 30
 max_sentence_len: 100
-eval_interval: 1000
-save_interval: 5000
+#eval_interval: 1000
+#save_interval: 5000
+eval_interval: 10
+save_interval: 500
 max_generator_batches: 32
 metric: ['bleu', 'xent']
 shared_vocab: True

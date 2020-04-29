@@ -51,9 +51,6 @@ def assign_graph_node_features(g, sentences, title=None):
 
 
 def text2graph_worker(i, df, use_cd=True, print_fig=False):
-    """
-    """
-    # df is pandas.DataFrame, loc[i] is the data of index i
     text = split_chinese_sentence(df.loc[i]['content'])
     url = split_chinese_sentence(df.loc[i]['url'])
 
@@ -66,6 +63,7 @@ def text2graph_worker(i, df, use_cd=True, print_fig=False):
     label = df.loc[i]['label']
 
     g = construct_ccig(text, concepts, title, use_cd)
+
     if g is None:
         return None
     g.graph_properties["title"] = g.new_graph_property("string")
@@ -86,8 +84,7 @@ def text2graph_worker(i, df, use_cd=True, print_fig=False):
 
 
 def extract_graphs_from_data(infile, use_cd=True, parallel=True, extract_range=None, print_fig=False):
-    """
-    """
+
     df = pd.read_csv(infile, sep="|", quotechar='\"', quoting=csv.QUOTE_ALL)  # , nrows=100)
     gs = []
     print("parallel extract graph features")
@@ -177,16 +174,14 @@ def save_graph_features_to_file(gs, outfile, draw_fig=False):
 
 def dataset2featurefile(infile, outfile, use_cd=False,
                         parallel=True, extract_range=None, draw_fig=False, print_fig=False):
-    """
-    """
     gs = extract_graphs_from_data(infile, use_cd, parallel, extract_range, print_fig)
     save_graph_features_to_file(gs, outfile, draw_fig)
 
 
 if __name__ == "__main__":
     print('building train graph')
-    dataset2featurefile("../data/train_graph_data.csv", "../data/train_graph_features.json")
+    dataset2featurefile("../sport_data/small_train_graph_data.csv", "../data/train_graph_features.json")
     print('building dev graph')
-    dataset2featurefile("../data/dev_graph_data.csv", "../data/dev_graph_features.json")
+    dataset2featurefile("../sport_data/dev_graph_data.csv", "../data/dev_graph_features.json")
     print('building test graph')
-    dataset2featurefile("../data/test_graph_data.csv", "../data/test_graph_features.json")
+    dataset2featurefile("../sport_data/test_graph_data.csv", "../data/test_graph_features.json")

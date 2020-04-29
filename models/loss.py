@@ -42,7 +42,7 @@ def cross_entropy_loss(hidden_outputs, targets, criterion):
     outputs = hidden_outputs.contiguous().view(-1, hidden_outputs.size(2))
     targets = targets.contiguous().view(-1)
     # scores = decoder.compute_score(outputs)
-    loss = criterion(outputs, targets)
+    loss = criterion(outputs, targets.long())
     pred = outputs.max(dim=1)[1]
     num_correct = pred.data.eq(targets.data).masked_select(targets.ne(dict.PAD).data).sum()
     num_total = targets.ne(dict.PAD).data.sum()

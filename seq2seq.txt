@@ -1,0 +1,90 @@
+data:	./sport_data/
+vocab:	./sport_data/vocab.txt
+vocab_size:	60000
+type_num:	4
+head_num:	4
+log:	./sport_data/log/
+epoch:	10
+batch_size:	32
+param_init:	0.1
+optim:	adam
+learning_rate:	0.0005
+max_grad_norm:	8
+window_size:	[1, 2, 3]
+filter_size:	128
+learning_rate_decay:	0.5
+schedule:	True
+start_decay_at:	2
+emb_size:	128
+encoder_hidden_size:	128
+decoder_hidden_size:	256
+num_layers:	2
+bidirec:	True
+dropout:	0.1
+max_tgt_len:	30
+max_sentence_len:	100
+eval_interval:	500
+save_interval:	2000
+max_generator_batches:	32
+metric:	['bleu', 'xent']
+shared_vocab:	True
+beam_size:	10
+
+seq2seq(
+  (embedding): Embedding(60000, 128)
+  (encoder): rnn_encoder(
+    (embedding): Embedding(60000, 128)
+    (rnn): LSTM(128, 128, num_layers=2, batch_first=True, dropout=0.1, bidirectional=True)
+  )
+  (decoder): rnn_decoder(
+    (embedding): Embedding(60000, 128)
+    (rnn): StackedLSTM(
+      (dropout): Dropout(p=0.1, inplace=False)
+      (layers): ModuleList(
+        (0): LSTMCell(128, 256)
+        (1): LSTMCell(256, 256)
+      )
+    )
+    (linear): Linear(in_features=256, out_features=60000, bias=True)
+    (attention): global_attention(
+      (linear_in): Linear(in_features=256, out_features=256, bias=True)
+      (linear_out): Linear(in_features=512, out_features=256, bias=True)
+      (softmax): Softmax(dim=-1)
+      (tanh): Tanh()
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+  )
+  (criterion): CrossEntropyLoss()
+  (log_softmax): LogSoftmax()
+  (tanh): Tanh()
+)
+
+total number of parameters: 24878176
+
+time: 80.529, epoch:   1, updates:      500, train loss:  4.538, train acc: 0.053
+time: 78.634, epoch:   1, updates:     1000, train loss:  4.282, train acc: 0.065
+time: 27.322, epoch:   2, updates:     1500, train loss:  1.401, train acc: 0.023
+time: 81.091, epoch:   2, updates:     2000, train loss:  4.096, train acc: 0.069
+time: 79.541, epoch:   2, updates:     2500, train loss:  4.094, train acc: 0.069
+time: 53.487, epoch:   3, updates:     3000, train loss:  2.714, train acc: 0.048
+time: 76.352, epoch:   3, updates:     3500, train loss:  3.954, train acc: 0.071
+time:  1.346, epoch:   4, updates:     4000, train loss:  0.080, train acc: 0.001
+time: 77.384, epoch:   4, updates:     4500, train loss:  3.853, train acc: 0.073
+time: 76.887, epoch:   4, updates:     5000, train loss:  3.824, train acc: 0.073
+time: 29.393, epoch:   5, updates:     5500, train loss:  1.357, train acc: 0.027
+time: 80.368, epoch:   5, updates:     6000, train loss:  3.715, train acc: 0.075
+time: 85.401, epoch:   5, updates:     6500, train loss:  3.713, train acc: 0.075
+time: 58.772, epoch:   6, updates:     7000, train loss:  2.564, train acc: 0.054
+time: 83.183, epoch:   6, updates:     7500, train loss:  3.618, train acc: 0.078
+time:  3.277, epoch:   7, updates:     8000, train loss:  0.147, train acc: 0.003
+time: 80.219, epoch:   7, updates:     8500, train loss:  3.586, train acc: 0.079
+time: 81.639, epoch:   7, updates:     9000, train loss:  3.551, train acc: 0.079
+time: 30.449, epoch:   8, updates:     9500, train loss:  1.356, train acc: 0.030
+time: 80.473, epoch:   8, updates:    10000, train loss:  3.530, train acc: 0.080
+time: 84.147, epoch:   8, updates:    10500, train loss:  3.506, train acc: 0.080
+time: 58.777, epoch:   9, updates:    11000, train loss:  2.561, train acc: 0.058
+time: 83.230, epoch:   9, updates:    11500, train loss:  3.519, train acc: 0.081
+time:  4.433, epoch:  10, updates:    12000, train loss:  0.216, train acc: 0.005
+time: 83.703, epoch:  10, updates:    12500, train loss:  3.599, train acc: 0.081
+time: 81.605, epoch:  10, updates:    13000, train loss:  3.541, train acc: 0.081
+Best bleu score: 0.00

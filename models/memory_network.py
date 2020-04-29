@@ -45,7 +45,7 @@ class Memory_Network(nn.Module):
         if self.word_level_model == 'bert':
             x = torch.cat([keyword_emb.unsqueeze(1), text_emb], 1)
             mask = torch.cat([torch.ones_like(keyword, dtype=torch.int32).unsqueeze(1), text_mask], 1)
-            x = self.bert.position_encode(x, mask)[:, 0]
+            x = self.bert.position_encode(x, mask)[:, 0]   # 0表明只取了每个句子的第一个单词,可能是concept 【13，128】
         elif self.word_level_model == 'memory':
             last_query = keyword_emb
             # TODO: use different memory cells for different layers

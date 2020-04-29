@@ -7,7 +7,7 @@ import Levenshtein
 import math
 from difflib import SequenceMatcher
 from config import *
-from util.nlp_utils import *
+#from util.nlp_utils import *
 from util.tfidf_utils import *
 from util.pd_utils import *
 from util.dict_utils import *

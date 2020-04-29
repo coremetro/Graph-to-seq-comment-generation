@@ -1,0 +1,163 @@
+data:	./sport_data/
+vocab:	./sport_data/vocab.txt
+vocab_size:	60000
+type_num:	4
+head_num:	4
+log:	./sport_data/log/
+epoch:	10
+batch_size:	32
+param_init:	0.1
+optim:	adam
+learning_rate:	0.0005
+max_grad_norm:	8
+window_size:	[1, 2, 3]
+filter_size:	128
+learning_rate_decay:	0.5
+schedule:	True
+start_decay_at:	2
+emb_size:	128
+encoder_hidden_size:	128
+decoder_hidden_size:	256
+num_layers:	2
+bidirec:	True
+dropout:	0.1
+max_tgt_len:	30
+max_sentence_len:	100
+eval_interval:	500
+save_interval:	2000
+max_generator_batches:	32
+metric:	['bleu', 'xent']
+shared_vocab:	True
+beam_size:	10
+
+graph2seq(
+  (embedding): Embedding(60000, 128)
+  (encoder): Memory_Network(
+    (embedding): Embedding(60000, 128)
+    (bert): BERT(
+      (position_emb): Embedding(101, 128)
+      (encoder): Encoder(
+        (layers): ModuleList(
+          (0): EncoderLayer(
+            (self_attn): MultiHeadedAttention(
+              (linears): ModuleList(
+                (0): Linear(in_features=128, out_features=128, bias=True)
+                (1): Linear(in_features=128, out_features=128, bias=True)
+                (2): Linear(in_features=128, out_features=128, bias=True)
+                (3): Linear(in_features=128, out_features=128, bias=True)
+              )
+            )
+            (feed_forward): PositionwiseFeedForward(
+              (w_1): Linear(in_features=128, out_features=128, bias=True)
+              (w_2): Linear(in_features=128, out_features=128, bias=True)
+              (dropout): Dropout(p=0.1, inplace=False)
+            )
+            (sublayer): ModuleList(
+              (0): SublayerConnection(
+                (norm): LayerNorm()
+                (dropout): Dropout(p=0.1, inplace=False)
+              )
+              (1): SublayerConnection(
+                (norm): LayerNorm()
+                (dropout): Dropout(p=0.1, inplace=False)
+              )
+            )
+          )
+          (1): EncoderLayer(
+            (self_attn): MultiHeadedAttention(
+              (linears): ModuleList(
+                (0): Linear(in_features=128, out_features=128, bias=True)
+                (1): Linear(in_features=128, out_features=128, bias=True)
+                (2): Linear(in_features=128, out_features=128, bias=True)
+                (3): Linear(in_features=128, out_features=128, bias=True)
+              )
+            )
+            (feed_forward): PositionwiseFeedForward(
+              (w_1): Linear(in_features=128, out_features=128, bias=True)
+              (w_2): Linear(in_features=128, out_features=128, bias=True)
+              (dropout): Dropout(p=0.1, inplace=False)
+            )
+            (sublayer): ModuleList(
+              (0): SublayerConnection(
+                (norm): LayerNorm()
+                (dropout): Dropout(p=0.1, inplace=False)
+              )
+              (1): SublayerConnection(
+                (norm): LayerNorm()
+                (dropout): Dropout(p=0.1, inplace=False)
+              )
+            )
+          )
+        )
+        (norm): LayerNorm()
+      )
+      (word_emb): Embedding(60000, 128)
+      (generator): Generator(
+        (ff): Sequential(
+          (0): Linear(in_features=128, out_features=128, bias=True)
+          (1): ReLU()
+        )
+        (emb): Embedding(60000, 128)
+      )
+    )
+    (gcn): GraphConvolution(
+      (linear): Linear(in_features=128, out_features=128, bias=True)
+      (activation): Tanh()
+    )
+    (out): Linear(in_features=128, out_features=256, bias=True)
+    (tanh): Tanh()
+  )
+  (decoder): rnn_decoder(
+    (embedding): Embedding(60000, 128)
+    (rnn): StackedLSTM(
+      (dropout): Dropout(p=0.1, inplace=False)
+      (layers): ModuleList(
+        (0): LSTMCell(128, 256)
+        (1): LSTMCell(256, 256)
+      )
+    )
+    (linear): Linear(in_features=256, out_features=60000, bias=True)
+    (attention): global_attention(
+      (linear_in): Linear(in_features=256, out_features=256, bias=True)
+      (linear_out): Linear(in_features=512, out_features=256, bias=True)
+      (softmax): Softmax(dim=-1)
+      (tanh): Tanh()
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+  )
+  (state_wc): Linear(in_features=256, out_features=512, bias=True)
+  (state_wh): Linear(in_features=256, out_features=512, bias=True)
+  (tanh): Tanh()
+  (criterion): CrossEntropyLoss()
+  (log_softmax): LogSoftmax()
+)
+
+total number of parameters: 24760288
+
+time: 233.724, epoch:   1, updates:      500, train loss:  4.540, train acc: 0.052
+time: 236.829, epoch:   1, updates:     1000, train loss:  4.267, train acc: 0.064
+time: 86.783, epoch:   2, updates:     1500, train loss:  1.395, train acc: 0.023
+time: 251.188, epoch:   2, updates:     2000, train loss:  4.074, train acc: 0.067
+time: 239.450, epoch:   2, updates:     2500, train loss:  4.083, train acc: 0.067
+time: 156.738, epoch:   3, updates:     3000, train loss:  2.700, train acc: 0.047
+time: 231.808, epoch:   3, updates:     3500, train loss:  3.934, train acc: 0.069
+time:  4.171, epoch:   4, updates:     4000, train loss:  0.080, train acc: 0.001
+time: 233.956, epoch:   4, updates:     4500, train loss:  3.838, train acc: 0.071
+time: 243.169, epoch:   4, updates:     5000, train loss:  3.813, train acc: 0.071
+time: 82.105, epoch:   5, updates:     5500, train loss:  1.358, train acc: 0.026
+time: 232.059, epoch:   5, updates:     6000, train loss:  3.721, train acc: 0.073
+time: 235.182, epoch:   5, updates:     6500, train loss:  3.722, train acc: 0.073
+time: 164.096, epoch:   6, updates:     7000, train loss:  2.581, train acc: 0.052
+time: 233.966, epoch:   6, updates:     7500, train loss:  3.639, train acc: 0.075
+time:  9.510, epoch:   7, updates:     8000, train loss:  0.149, train acc: 0.003
+time: 232.734, epoch:   7, updates:     8500, train loss:  3.615, train acc: 0.076
+time: 235.093, epoch:   7, updates:     9000, train loss:  3.576, train acc: 0.076
+time: 91.434, epoch:   8, updates:     9500, train loss:  1.372, train acc: 0.029
+time: 232.321, epoch:   8, updates:    10000, train loss:  3.547, train acc: 0.077
+time: 232.567, epoch:   8, updates:    10500, train loss:  3.540, train acc: 0.077
+time: 173.242, epoch:   9, updates:    11000, train loss:  2.575, train acc: 0.056
+time: 241.316, epoch:   9, updates:    11500, train loss:  3.533, train acc: 0.078
+time: 14.120, epoch:  10, updates:    12000, train loss:  0.219, train acc: 0.005
+time: 245.472, epoch:  10, updates:    12500, train loss:  3.646, train acc: 0.077
+time: 242.344, epoch:  10, updates:    13000, train loss:  3.595, train acc: 0.078
+Best bleu score: 0.00

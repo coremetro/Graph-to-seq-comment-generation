@@ -55,7 +55,8 @@ def logging_csv(file):
 
 
 def format_time(t):
-    return time.strftime("%Y-%m-%d-%H:%M:%S", t)
+    # return time.strftime("%Y-%m-%d-%H:%M:%S", t)
+    return time.strftime("%Y-%m-%d-%H-%M-%S", t)
 
 
 def eval_multi_bleu(references, candidate, log_path):
@@ -98,16 +99,17 @@ def eval_multi_bleu(references, candidate, log_path):
         for s in candidate:
             f.write(" ".join(s).strip() + '\n')
 
-    temp = log_path + "/result.txt"
-    command = "perl multi-bleu.perl " + ref_file_1 + " " + ref_file_2 + " " + ref_file_3 + " " + ref_file_4 + "<" + cand_file + "> " + temp
-    os.system(command)
-    with open(temp) as ft:
-        result = ft.read()
-    os.remove(temp)
-    try:
-        bleu = float(result.split(',')[0][7:])
-    except ValueError:
-        bleu = 0
+    # temp = log_path + "/result.txt"
+    # command = "perl multi-bleu.perl " + ref_file_1 + " " + ref_file_2 + " " + ref_file_3 + " " + ref_file_4 + "<" + cand_file + "> " + temp
+    # os.system(command)
+    # with open(temp) as ft:
+    #     result = ft.read()
+    # os.remove(temp)
+    # try:
+    #     bleu = float(result.split(',')[0][7:])
+    # except ValueError:
+    #     bleu = 0
+    result,bleu = 0,0
     return result, bleu
 
 
@@ -124,16 +126,17 @@ def eval_bleu(reference, candidate, log_path):
         for s in candidate:
             f.write(" ".join(s).strip() + '\n')
 
-    temp = log_path + "/result.txt"
-    command = "perl multi-bleu.perl " + ref_file + "<" + cand_file + "> " + temp
-    os.system(command)
-    with open(temp) as ft:
-        result = ft.read()
-    os.remove(temp)
-    try:
-        bleu = float(result.split(',')[0][7:])
-    except ValueError:
-        bleu = 0
+    # temp = log_path + "/result.txt"
+    # command = "perl multi-bleu.perl " + ref_file + "<" + cand_file + "> " + temp
+    # os.system(command)
+    # with open(temp) as ft:
+    #     result = ft.read()
+    # os.remove(temp)
+    # try:
+    #     bleu = float(result.split(',')[0][7:])
+    # except ValueError:
+    #     bleu = 0
+    result,bleu = 0,0
     return result, bleu
 
 

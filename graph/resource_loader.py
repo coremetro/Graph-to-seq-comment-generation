@@ -9,7 +9,7 @@ from util.pd_utils import *
 
 
 def load_IDF():
-    contentfile = "../data/seged_content.txt"
+    contentfile = "../sport_data/segged_content.txt"
     idffile = "../data/IDF.txt"
     if not os.path.exists(idffile):
         gen_idf(contentfile, idffile)

@@ -31,7 +31,7 @@ class graph2seq(nn.Module):
         if use_copy:
             self.decoder = models.pointer_decoder(config, self.vocab_size, embedding=self.embedding)
         else:
-            self.decoder = models.rnn_decoder(config, self.vocab_size, embedding=self.embedding)
+            self.decoder = models.rnn_decoder(config, self.vocab_size, embedding=self.embedding, gru=False)
         self.state_wc = nn.Linear(config.decoder_hidden_size, config.decoder_hidden_size * config.num_layers)
         self.state_wh = nn.Linear(config.decoder_hidden_size, config.decoder_hidden_size * config.num_layers)
         self.tanh = nn.Tanh()
@@ -47,7 +47,7 @@ class graph2seq(nn.Module):
         weight[PAD] = 0
         weight[UNK] = 0
         weight = weight.to(outputs.device)
-        loss = F.nll_loss(torch.log(outputs), targets, weight=weight, reduction='sum')
+        loss = F.nll_loss(torch.log(outputs), targets.long(), weight=weight, reduction='sum')
         pred = outputs.max(dim=1)[1]
         num_correct = pred.data.eq(targets.data).masked_select(targets.ne(PAD).data).sum()
         num_total = targets.ne(PAD).data.sum()
@@ -65,10 +65,15 @@ class graph2seq(nn.Module):
             contexts.append(context)
             states.append(state)
         contexts = pad_sequence(contexts, batch_first=True)
-        if self.use_bert:
-            contexts, attn = self.bert_encoder.encode(contexts, concept_mask)
+        '''这里改了'''
+        #去掉bert模型
+        #if self.use_bert:
+        #    contexts, attn = self.bert_encoder.encode(contexts, concept_mask)
         state = torch.stack(states, 0)
-        return contexts, state, attn
+        #return contexts, state, attn
+        # state = torch.stack(states, 0)
+        return contexts, state
+
 
     def build_init_state(self, state, num_layers):
         c0 = self.tanh(self.state_wc(state)).contiguous().view(-1, num_layers, self.config.decoder_hidden_size)
@@ -90,7 +95,11 @@ class graph2seq(nn.Module):
             concept = [c.cuda() for c in concept]
             concept_mask = concept_mask.cuda()
             title_index = title_index.cuda()
-        contexts, state, attns = self.encode(src, src_mask, concept, concept_mask, title_index, adjs)
+        '''这里改了'''
+        #去掉bert模型，不再返回attns
+        contexts, state = self.encode(src, src_mask, concept, concept_mask, title_index, adjs)
+        # contexts, state = self.encode(src, src_mask, concept, concept_mask, title_index, adjs)
+
         c0, h0 = self.build_init_state(state, self.config.num_layers)
         if self.use_copy:
             outputs, final_state, attns, p_gens = self.decoder(tgt[:, :-1], (c0, h0), contexts, concept_mask,
@@ -113,7 +122,10 @@ class graph2seq(nn.Module):
             concept = [c.cuda() for c in concept]
             concept_mask = concept_mask.cuda()
             title_index = title_index.cuda()
-        contexts, state, attns = self.encode(src, src_mask, concept, concept_mask, title_index, adjs)
+        '''以下有改动'''
+        # 去掉bert模型，不再返回attns
+        #contexts, state, attns = self.encode(src, src_mask, concept, concept_mask, title_index, adjs)
+        contexts, state = self.encode(src, src_mask, concept, concept_mask, title_index, adjs)
         bos = torch.ones(len(src)).long().fill_(self.vocab.word2id('[START]'))
         if use_cuda:
             bos = bos.cuda()
@@ -126,8 +138,11 @@ class graph2seq(nn.Module):
             sample_ids, final_outputs = self.decoder.sample([bos], (c0, h0), contexts)
         probs, attns_weight = final_outputs
         alignments = attns_weight.max(dim=2)[1]
-
-        return sample_ids, attns
+        '''以下有改动'''
+        # 返回aligenments
+        return sample_ids, alignments
+        # return sample_ids, attns
+        # return sample_ids, 0
 
     # TODO: fix beam search
     def beam_sample(self, batch, use_cuda, beam_size=1):

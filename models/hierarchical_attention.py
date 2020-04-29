@@ -75,7 +75,7 @@ class hierarchical_attention(nn.Module):
         weight[PAD] = 0
         weight[UNK] = 0
         weight = weight.to(outputs.device)
-        loss = F.nll_loss(torch.log(outputs), targets, weight=weight, reduction='sum')
+        loss = F.nll_loss(torch.log(outputs), targets.long(), weight=weight, reduction='sum')
         pred = outputs.max(dim=1)[1]
         num_correct = pred.data.eq(targets.data).masked_select(targets.ne(PAD).data).sum()
         num_total = targets.ne(PAD).data.sum()

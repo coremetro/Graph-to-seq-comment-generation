@@ -14,12 +14,13 @@ from collections import OrderedDict
 from tqdm import tqdm
 import sys
 import os
-
+from models import graph2gru
+from models import graph2gru_noAtten
 parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
 current_dir = os.getcwd()
 sys.path.insert(0, parent_dir)
 from util.nlp_utils import *
-
+import nltk
 
 # config
 def parse_args():
@@ -28,9 +29,10 @@ def parse_args():
                         help="beam_search")
     parser.add_argument('-config', default='config.yaml', type=str,
                         help="config file")
-    parser.add_argument('-model', default='graph2seq', type=str,
-                        choices=['seq2seq', 'graph2seq', 'bow2seq', 'h_attention'])
-    parser.add_argument('-gpus', default=[1], type=int,
+    # 在参数配置中增加graph2gru,graph2gru_noAtten
+    parser.add_argument('-model', default='graph2gru', type=str,
+                        choices=['seq2seq', 'graph2seq', 'bow2seq', 'h_attention', 'graph2gru', 'graph2gru_noAtten'])
+    parser.add_argument('-gpus', default=[0], type=int,
                         help="Use CUDA on the listed devices.")
     parser.add_argument('-restore',
                         type=str, default=None,
@@ -53,7 +55,7 @@ def parse_args():
                         help='whether to use title in the seq2seq')
     parser.add_argument('-word_level_model', default='bert', choices=['bert', 'memory', 'word'],
                         help='whether to use bert or memory network or nothing in the word level of encoder')
-    parser.add_argument('-graph_model', default='none', choices=['GCN', 'GNN', 'none'],
+    parser.add_argument('-graph_model', default='GCN', choices=['GCN', 'GNN', 'none'],
                         help='whether to use gcn in the encoder')
     parser.add_argument('-debug', default=False, action="store_true",
                         help='whether to use debug mode')
@@ -184,8 +186,10 @@ def eval(model, vocab, dataloader, epoch, updates, do_test=False):
     utils.write_result_to_file(source, candidate, log_path)
     # text_result, bleu = utils.eval_bleu(reference, candidate, log_path)
     text_result, bleu = utils.eval_multi_bleu(multi_ref, candidate, log_path)
+    bleu = nltk.translate.bleu_score.corpus_bleu(multi_ref, candidate)
     logging_csv([epoch, updates, text_result])
-    print(text_result, flush=True)
+    #print(text_result, flush=True)
+    print("bleu is:", bleu)
     # print(multi_text_result, flush=True)
     return bleu
 
@@ -207,7 +211,7 @@ def main():
     # 设定种子
     torch.manual_seed(args.seed)
     if use_cuda:
-        torch.cuda.manual_seed(args.seed)
+            torch.cuda.manual_seed(args.seed)
 
     # checkpoint
     if args.restore:  # 存储已有模型的路径
@@ -237,8 +241,15 @@ def main():
     print('building model...\n')
     # configure the model
     # Model and optimizer
+    # 增加模型graph2gru, graoh2gru_noAtten
     if args.model == 'graph2seq':
         model = graph2seq(config, vocab, use_cuda, args.use_copy, args.use_bert, args.word_level_model,
+                          args.graph_model)
+    elif args.model == 'graph2gru':
+        model = graph2gru.graph2gru(config, vocab, use_cuda, args.use_copy, args.use_bert, args.word_level_model,
+                          args.graph_model)
+    elif args.model == 'graph2gru_noAtten':
+        model = graph2gru_noAtten.graph2gru_noAtten(config, vocab, use_cuda, args.use_copy, args.use_bert, args.word_level_model,
                           args.graph_model)
     elif args.model == 'seq2seq':
         model = seq2seq(config, vocab, use_cuda, use_content=args.use_content)
@@ -284,14 +295,14 @@ def main():
         scheduler = L.CosineAnnealingLR(optim.optimizer, T_max=config.epoch)
     else:
         scheduler = None
-
+    print("nana...")
     if not args.notrain:
         max_bleu = train(model, vocab, dataloader, scheduler, optim, updates)
         logging("Best bleu score: %.2f\n" % (max_bleu))
     else:
         assert args.restore is not None
         eval(model, vocab, dataloader, 0, updates, do_test=False)
-
+    print("nana```")
 
 if __name__ == '__main__':
     main()

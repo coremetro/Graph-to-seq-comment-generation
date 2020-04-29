@@ -3,12 +3,14 @@ import csv
 import jieba
 import random
 
-docs, doc_content = json.load(open('../data/doc_content.json'))
+default_dir = 'C:/Users/53051/PycharmProjects/Graph-to-seq-comment-generation-master'
+
+docs, doc_content = json.load(open(default_dir+'/data/doc_content.txt'))
 field_names = ['url', 'label', 'content', 'concepts', 'title']
 train_csv_writer = csv.DictWriter(open('../data/train_graph_data.csv', 'w'), fieldnames=field_names,
                                   delimiter='|', quotechar='\"', quoting=csv.QUOTE_ALL)
 dev_csv_writer = csv.DictWriter(open('../data/dev_graph_data.csv', 'w'), fieldnames=field_names, delimiter='|',
-                                quotechar='\"', quoting=csv.QUOTE_ALL)
+                                quotechar='\"', quotingimpo=csv.QUOTE_ALL)
 test_csv_writer = csv.DictWriter(open('../data/test_graph_data.csv', 'w'), fieldnames=field_names, delimiter='|',
                                  quotechar='\"', quoting=csv.QUOTE_ALL)
 train_csv_writer.writeheader()
